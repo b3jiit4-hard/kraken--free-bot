@@ -1,0 +1,88 @@
+name: trader
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: kraken-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Pre-Flight Audit
+        env:
+          KRAKEN_API_KEY: ${{ secrets.KRAKEN_API_KEY }}
+          KRAKEN_API_SECRET: ${{ secrets.KRAKEN_API_SECRET }}
+          BASE_CCY: ${{ vars.BASE_CCY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python audit.py
+
+      - name: Commit audit report
+        if: ${{ always() }}
+        run: |
+          git config user.email "bot@example.com"
+          git config user.name "bot"
+          git add audit_report.md || true
+          if ! git diff --cached --quiet; then
+            git commit -m "audit update $(date -u +"%Y-%m-%d %H:%M:%S")"
+            git push
+          fi
+
+      - name: Detect first run
+        if: ${{ success() }}
+        run: |
+          if [ -f state.json ]; then echo "FIRST_RUN=0" >> $GITHUB_ENV; else echo "FIRST_RUN=1" >> $GITHUB_ENV; fi
+
+      - name: Analysis-only (first run)
+        if: ${{ success() && env.FIRST_RUN == '1' }}
+        env:
+          KRAKEN_API_KEY: ${{ secrets.KRAKEN_API_KEY }}
+          KRAKEN_API_SECRET: ${{ secrets.KRAKEN_API_SECRET }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BASE_CCY: ${{ vars.BASE_CCY }}
+          PAPER_TRADING: '1'
+          ANALYSIS_ONLY: '1'
+        run: |
+          python bot.py
+
+      - name: Run bot (paper)
+        if: ${{ success() && env.FIRST_RUN == '0' }}
+        env:
+          KRAKEN_API_KEY: ${{ secrets.KRAKEN_API_KEY }}
+          KRAKEN_API_SECRET: ${{ secrets.KRAKEN_API_SECRET }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BASE_CCY: ${{ vars.BASE_CCY }}
+          PAPER_TRADING: '1'
+        run: |
+          python bot.py
+
+      - name: Commit state
+        if: ${{ success() }}
+        run: |
+          git config user.email "bot@example.com"
+          git config user.name "bot"
+          git add state.json fills.csv || true
+          if ! git diff --cached --quiet; then
+            git commit -m "state update $(date -u +"%Y-%m-%d %H:%M:%S")"
+            git push
+          fi
