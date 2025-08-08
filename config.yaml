@@ -1,0 +1,24 @@
+symbols:
+  - "BTC/EUR"
+  - "ETH/EUR"
+
+timeframe: "5m"
+ema_fast: 20
+ema_slow: 50
+atr_period: 14
+atr_k: 2.5
+
+risk_per_trade_bps: 25       # 0,25% per trade
+max_daily_drawdown_bps: 100  # stop giornaliero ~1%
+max_trades_per_day: 6
+
+session_utc:
+  start_hour: 7   # 07:00 UTC (09:00 circa in Italia d'estate)
+  end_hour: 21    # 21:00 UTC
+
+paper_start_eur: 50.0
+paper_slippage_bps: 5
+paper_fee_bps: 26
+
+notify:
+  telegram: true
