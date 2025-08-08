@@ -1,0 +1,6 @@
+ccxt==4.3.47
+pandas==2.2.2
+numpy==1.26.4
+pyyaml==6.0.2
+python-dateutil==2.9.0.post0
+requests==2.32.3
